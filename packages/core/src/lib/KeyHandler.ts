@@ -2,6 +2,20 @@ import { EventEmitter } from "events"
 import { parseKeypress, type KeyEventType, type ParsedKey } from "./parse.keypress"
 import { ANSI } from "../ansi"
 
+// ANSI escape code regex pattern for stripping
+const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[PX^_][^\x1b]*\x1b\\|\x1b[@-Z\\-_]|\x1b\[[0-9;]*[ -/]*[@-~]/g
+
+/**
+ * Strip ANSI escape codes from a string.
+ * Uses Bun.stripANSI if available, otherwise falls back to regex.
+ */
+function stripANSI(data: string): string {
+  if (typeof Bun !== "undefined" && typeof Bun.stripANSI === "function") {
+    return Bun.stripANSI(data)
+  }
+  return data.replace(ANSI_ESCAPE_PATTERN, "")
+}
+
 export class KeyEvent implements ParsedKey {
   name: string
   ctrl: boolean
@@ -111,7 +125,7 @@ export class KeyHandler extends EventEmitter<KeyHandlerEventMap> {
 
   public processPaste(data: string): void {
     try {
-      const cleanedData = Bun.stripANSI(data)
+      const cleanedData = stripANSI(data)
       this.emit("paste", new PasteEvent(cleanedData))
     } catch (error) {
       console.error(`[KeyHandler] Error processing paste:`, error)
